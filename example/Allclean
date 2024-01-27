@@ -1,0 +1,19 @@
+#/bin/bash
+
+rm -fv *.cond2d
+rm -fv *.cockpit
+rm -fv *.output
+rm -fv *.ps
+rm -fv *.old
+rm -fv *.scan
+rm -fv *.data~
+rm -fv *.inp
+rm -fv *.evalbfout
+rm -fv *.vfem
+rm -fv *.hmo
+rm -fv *.ini
+rm -fv *.post
+rm -fv *.sol
+rm -fv *.dat
+rm -fv *.plotbf
+rm -fv *.out

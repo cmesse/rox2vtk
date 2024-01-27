@@ -1,0 +1,11 @@
+This script was tested with ROXIE 10.2
+
+To convert your ROXIE calculation:
+
+1. make sure that your Python installation has numpy and scipy installed
+   (when in doubt, change the shebang "#!/usr/bin/env python3" so that
+    it points to the python distribution you wand to use)
+1. make sure that the paths for the iron and the cables are set up
+2. run Roxie
+3. call the script ../rox2vtk dipole.data
+4. enjoy the dipole.vtk in the beautiful world of ParaView

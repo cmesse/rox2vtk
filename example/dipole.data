@@ -1,0 +1,142 @@
+VERSION 10.2.1
+'                                                                                   '
+'/opt/roxie/latest/datab/roxie.bhdata                                               '
+'/home/christian/codes/rox2vtk/example/dipole.cadata                                '
+'/home/christian/codes/rox2vtk/example/dipole.iron                                  '
+
+&OPTION
+  LEND=F     LWEDG=F    LPERS=F    LQUENCH=F  LALGO=F    LMIRIRON=F 
+  LBEMFEM=T  LPSI=F     LSOLV=T    LIRON=T    LMORPH=F   LHARD=F    
+  LPOSTP=F   LPEAK=T    LINMARG=F  LMARG=F    LSELF=F    LMQE=F     
+  LINDU=F    LEDDY=F    LSOLE=F    LFIELD3=F  LFISTR=F   LSELF3=F   
+  LBRICK=F   LLEAD=F    LVRML=F    LOPERA=F   LOPER20=F  LANSYS=F   
+  LDXF=F     LMAP2D=F   LMAP3D=F   LEXPR=F    LFIL3D=F   LFIL2D=F   
+  LCNC=F     LBEND=F    LWEIRON=F  LCATIA=F   LEXEL=T    LAXIS=F    
+  LIMAGX=F   LIMAGY=F   LRAEND=F   LMARKER=F  LROLER2=F  LROLERP=F  
+  LIMAGZZ=F  LSTEP=F    LIFF=F     LICCA=F    LICC=F     LICCIND=F  
+  LITERNL=F  LTOPO=F    LQUEN3=F   LAYER=T    LEULER=T   LHEAD=T    
+  LPLOT=T    LVERS52=T  LHARM=T    LMATRF=F   LF3LIN=F   
+  /
+
+GLOBAL2DOPTION 0
+
+GLOBAL3D 0
+
+BLOCK 6
+    1     1    13           60      0.52886            0      8483.64  EICLHCQ2K   2  14     0            0 
+    2     1     8           60      29.1546      19.1919      8483.64  EICLHCQ2K   2  14     0            0 
+    3     1     4           60      51.8139      57.4598      8483.64  EICLHCQ2K   2  14     0            0 
+    4     1     3           60      72.9547      69.6786      8483.64  EICLHCQ2K   2  14     0            0 
+    5     1    22         76.1      0.52886            0      8483.64  EICLHCQ2K   2  14     0            0 
+    6     1    18         76.1      36.2048      46.1256      8483.64  EICLHCQ2K   2  14     0            0 
+   no  type   nco       radius          phi        alpha      current   condname  n1  n2  imag         turn 
+
+BLOCKOPTION 0
+
+BLOCK3D 0
+
+LEAD 0
+
+BRICK 0
+
+IRONYOKEOPTIONS /
+      1 
+  scale 
+
+             0            0 
+         inrad       reperm 
+
+      0 
+  symtype 
+
+      2     3     1 
+  yzplane zxplane xyplane 
+
+      1     0     0 
+   mode   div   sym 
+
+IRONYOKE 0
+
+EXTRUSION 0
+
+PERMANENTMAG2 0
+
+PERMANENTMAG1 0
+
+LAYER 1
+      1     2     1 1 2 3 4 5 6 /
+     no  symm typexy blocks 
+
+ALGO /
+      0 
+   algo 
+
+DESIGN 0
+
+EULER 0
+
+PEAK 0
+
+TIMETABLE2 0
+
+TIMETABLE1 1
+      1            0           10     1         0.01            1            0            0   100 1 2 3 4 5 6 /
+     no          tds          tde    ff            a            b            c            d nsteps layers 
+
+EDDY /
+      0 
+   pers 
+
+EDDYOPTIONS 0
+
+QUENCHG 0
+
+QUENCHEN 0
+
+QUENCHTM 0
+
+QUENCHP 0
+
+QUENCHS 0
+
+HARMONICTABLE 1
+      1     1            0            0            0            0           30        2                      0 
+     no  type            x            y           s1           s2         rref     bref                  field 
+
+MATRF 1
+             0            0     0 
+             0            0     0 
+             0            0     0     0 
+         start          end    no field 
+
+LINEFIELD 0
+
+HARMONICOPTION 0
+
+GRAPH 11
+      1          2     CURNTB     1     0       BIGB     1     1       1     1           -1 
+      2          2     CURNTB     1     0          B     3     1       2     1           -1 
+      3          2     CURNTB     1     0          B     5     1       2     1           -1 
+      4          2     CURNTB     1     0          B     7     1       2     1           -1 
+      5          2     CURNTB     1     0          B     9     1       2     1           -1 
+      6          2     CURNTB     1     0          B    11     1       2     1           -1 
+      7          2     CURNTB     1     0          B    13     1       2     1           -1 
+      8          2     CURNTB     1     0          B    15     1       2     1           -1 
+      9          2     CURNTB     1     0          B    17     1       2     1           -1 
+     10          2     CURNTB     1     0          B    19     1       2     1           -1 
+     11          2     CURNTB     1     0          B    21     1       2     1           -1 
+     no       type     xvalue   s1x   s2x     yvalue   s1y   s2y plotnbr  axes       weight 
+
+GRAPHOPTION 0
+
+PLOT2D 0
+
+PLOT2DOPTION 0
+
+PLOT3D 0
+
+PLOT3DOPTION 0
+
+OBJECTIVE 0
+
+

@@ -1,0 +1,486 @@
+#!/usr/bin env python3
+# -*- coding: utf-8 -*-
+
+"""
+rox2vtk, a small script to convert ROXIE files to ParaView
+by Christian Messe, cmesse@lbl.gov
+(c) 2024, The Regents of the University of California,
+through Lawrence Berkeley National Laboratory
+(subject to receipt of any required approvals from the U.S. Dept. of Energy).
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+3. Neither the name of the University of California, Lawrence Berkeley
+   National Laboratory, U.S. Dept. of Energy nor the names of its contributors
+   may be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+You are under no obligation whatsoever to provide any bug fixes, patches, or
+upgrades to the features, functionality or performance of the source code
+("Enhancements") to anyone; however, if you choose to make your Enhancements
+available either publicly, or directly to Lawrence Berkeley National
+Laboratory, without imposing a separate written license agreement for such
+Enhancements, then you hereby grant the following license: a non-exclusive,
+royalty-free perpetual license to install, use, modify, prepare derivative
+works, incorporate into other computer software, distribute, and sublicense
+such enhancements or derivative works thereof, in binary and source code form.
+"""
+
+import math
+import os
+import re
+import sys
+import numpy as np
+from scipy.interpolate import UnivariateSpline
+
+class AsciiFile:
+    """
+    A utility class for handling ASCII files. Allows for opening, saving, cleaning,
+    and navigating through the contents of an ASCII file.
+    """
+    def __init__(self, path = "" ):
+        self.buffer = []
+        self.pointer = 0
+        self.numlines = 0
+
+        # try to load data from file
+        if path != "":
+            self.open( path )
+
+    def save(self, path = "" ):
+
+        if( path == "" ):
+            path = self.path
+
+        # save file into output
+        File = open(path, 'w',encoding='utf-8')
+
+        # dump buffer into file
+        for Line in self.buffer:
+            File.write(Line + '\n')
+
+        # close file
+        #print('saving ' + path)
+        File.close()
+
+    def open( self, path="" ) :
+        ## The path that is associated with this file
+        self.path = path
+
+        ## The buffer contains all lines in this ascii file
+        self.buffer = []
+
+        if ( path != ""):
+            # Test if file Exists
+            self.throw_nofile( os.path.exists(path), 'File ' + str(path) + ' does not exist' )
+
+            # load the file from the buffer
+            File = open(path, 'r', encoding='utf-8')
+
+            # add line to file
+            for Line in File:
+                if len(Line) > 0:
+                    if (ord(Line[-1]) == 10):
+                        self.buffer.append(Line[:-1])
+                    else:
+                        self.buffer.append(Line)
+                else:
+                    self.buffer.append("")
+
+            self.pointer = 0
+            self.numlines = len( self.buffer )
+
+            # close the file instance
+            File.close()
+
+    def __del__(self):
+        # delete the buffer
+        self.buffer.clear()
+
+    def clean_buffer(self):
+
+        n = len(self.buffer)
+
+        # loop over all lines in buffer
+        for k in range(n):
+            # copy line
+            Line = re.sub('\t', ' ', self.buffer[k])
+
+            # Tidy up line
+            self.buffer[k] = re.sub(' +', ' ', Line.strip())
+
+    def throw(self, check: bool, message: str ):
+        try:
+            if not check == True:
+                raise Exception( message )
+        except Exception as e:
+            sys.exit(str(e))
+
+    def throw_nofile(self, check: bool, message: str ):
+        #try:
+        if not check == True:
+            raise FileNotFoundError( message )
+
+
+class Cond2D(AsciiFile):
+    """
+    Class representing a 2D conductor structure read from an ASCII file.
+
+    Attributes:
+        path (str): Path to the ASCII file.
+        parent: Parent object that holds the overall structure.
+    """
+
+    def __init__(self, path: str, parent):
+        # Initialize the base AsciiFile class with the provided path
+        AsciiFile.__init__(self, path)
+
+        # Clean up the file buffer
+        self.clean_buffer()
+
+        # Find the start line of conductor position data
+        start_line = 0
+        for k in range(7):
+            if "CONDUCTOR POSITION IN THE CROSS-SECTION" in self.buffer[k]:
+                break
+            start_line += 1
+        start_line += 3
+
+        # Find the end line of conductor position data
+        end_line = start_line
+        for e in range(start_line, len(self.buffer)):
+            if len(self.buffer[e]) == 0:
+                break
+            end_line += 1
+
+        # Calculate the number of elements (conductors)
+        parent.numconds = int((end_line - start_line) / 5)
+
+        # Calculate the number of nodes
+        parent.numcondnodes = 4 * parent.numconds
+
+        # Initialize an array to store node positions
+        parent.condnodes = np.zeros((parent.numcondnodes, 2))
+
+        # Line number and node counter
+        line_number = start_line
+        node_counter = 0
+
+        # Loop through each conductor
+        for k in range(parent.numconds):
+            # Loop through each node of the conductor
+            for i in range(4):
+                words = self.buffer[line_number].split()
+                parent.condnodes[node_counter][0] = float(words[4].replace(',', ''))
+                parent.condnodes[node_counter][1] = float(words[5])
+                node_counter += 1
+                line_number += 1
+            line_number += 1
+
+class RoxieReader():
+
+    def __init__(self, path: str):
+        basepath = path.rsplit(".")[0]
+        self._read_cond2d( basepath + ".cond2d" )
+        self._read_mucurve( os.path.dirname(path) + "/bemfem.ini" )
+        self._read_hmo(os.path.dirname(path) + "/bemfem.hmo")
+        self._read_sol(basepath + ".sol")
+        self._save_vtk(basepath + ".vtk")
+
+    def _read_hmo(self, path: str):
+        """
+        Reads mesh data from an HMO file and processes the node and element information.
+        Args:
+            path (str): Path to the HMO file.
+        """
+        hmo = AsciiFile(path)
+        hmo.clean_buffer()
+
+        # Initialize boundaries for different data sections
+        bdata, edata, bnodes, enodes, belems, eelems = 0, 0, 0, 0, 0, 0
+
+        # Scan through the file to find section boundaries
+        for i, line in enumerate(hmo.buffer):
+            if "BEG_COMP_DATA" in line:
+                bdata = i
+            elif "END_COMP_DATA" in line:
+                edata = i
+            elif "BEG_NODL_DATA" in line:
+                bnodes = i
+            elif "END_NODL_DATA" in line:
+                enodes = i
+            elif "BEG_ELEM_DATA" in line:
+                belems = i
+            elif "END_ELEM_DATA" in line:
+                eelems = i
+
+        # Process nodes information
+        self.numnodes = enodes - bnodes - 2
+        self.nodes = np.zeros((self.numnodes, 2))
+        for k, line in enumerate(hmo.buffer[bnodes + 2:enodes]):
+            words = line.split()
+            self.nodes[k] = [float(words[1]), float(words[2])]
+
+        # Process elements information
+        self.numels = eelems - belems - 2
+        self.elements = np.zeros((self.numels, 8), dtype=int)
+        self.nodesperelem = np.zeros( self.numels, dtype=int )
+
+        for e, line in enumerate(hmo.buffer[belems + 2:eelems]):
+            words = line.split()
+            self.nodesperelem[e] = len(words) - 3
+            for i in range(self.nodesperelem[e]):
+                self.elements[e][i] = int(words[i+3]) - 1
+
+    def _read_sol(self, path: str):
+        """
+        Reads solution data from a file and processes magnetic and electric field information.
+        Args:
+            path (str): Path to the solution file.
+        """
+        sol = AsciiFile(path)
+        sol.clean_buffer()
+
+        # Process magnetic field information
+        self.bx, self.by = self._process_field_data(sol, "-22 3 0")
+
+        # Process electric field information
+        self.hx, self.hy = self._process_field_data(sol, "-24 3 0")
+
+    def _read_cond2d(self, path: str ):
+        if not os.path.exists(path):
+            self.numcondnodes = 0
+            self.numconds = 0
+
+            return
+        C = Cond2D( path, self  )
+
+    def _read_mucurve(self, path: str):
+        """
+        Reads a magnetic B-H curve from an ASCII file and initializes the mucurve attribute.
+        Note that at this time, we only read the first B-H curve and assume that it applies
+        to the whole bulk!
+
+        Parameters:
+            path (str): Path to the ASCII file containing the B-H curve data.
+        """
+        # Initialize and clean the AsciiFile object
+        F = AsciiFile(path)
+        F.clean_buffer()
+
+        # Find the start of the B-H curve data after "BEG_TABLES"
+        start_line = 0
+        for line in F.buffer:
+            if "BEG_TABLES" in line:
+                break
+            start_line += 1
+        start_line += 1  # Move to the line after "BEG_TABLES"
+
+        # Extract the number of data points from the file
+        npoints = int(F.buffer[start_line].split()[2].replace(';', ''))
+
+        # Initialize arrays for H and B values
+        H = np.zeros(npoints)
+        B = np.zeros(npoints)
+
+        # Read and store H and B values from the file
+        start_line += 1
+        for k in range(npoints):
+            words = F.buffer[k + start_line].split(';')
+            H[k] = float(words[0])
+            B[k] = float(words[1])
+
+        # Create a spline of the B-H curve and store its derivative
+        self.mucurve = UnivariateSpline(H, B).derivative()
+
+        # Store the maximum H value for later use
+        self.hmax = H.max()
+
+    def _process_field_data(self, sol, field_tag):
+        """
+        Extracts field data (either B-field or H-Field) from the solution buffer.
+        Args:
+            sol (AsciiFile): An AsciiFile instance containing the file data.
+            field_tag (str): A tag indicating the start of the field data section.
+        Returns:
+            tuple: Two numpy arrays containing x and y components of the field.
+        """
+        # Find the start of the field data section
+        start_line = self._find_field_start(sol.buffer, field_tag)
+
+        k = 0
+        n = np.sum( self.nodesperelem )
+        field_x = np.zeros(n)
+        field_y = np.zeros(n)
+        for e in range(self.numels) :
+            num_data_points = self.nodesperelem[e]
+            # Extract field data from the buffer
+            for i in range(num_data_points):
+                words = sol.buffer[start_line + k].split()
+                field_x[k] = float(words[2])
+                field_y[k] = float(words[3])
+                k+=1
+
+        return field_x, field_y
+
+    @staticmethod
+    def _find_field_start(buffer, field_tag):
+        """
+        Finds the start line of a specific field data section in the buffer.
+        Args:
+            buffer (list): The buffer containing file lines.
+            field_tag (str): The tag indicating the start of the field data section.
+        Returns:
+            int: The index of the start line for the field data.
+        """
+        for i, line in enumerate(buffer):
+            if field_tag in line:
+                return i + 1
+        return -1
+
+    def _save_vtk(self, path: str):
+        """
+        Exports mesh data to a VTK ASCII file format, including points, cells, cell types,
+        and vector field data.
+
+        Args:
+            path: path where the file is written
+        """
+
+        vtk = AsciiFile()
+
+        # Header information for VTK file
+        vtk.buffer.append("# vtk DataFile Version 2.0")
+        vtk.buffer.append("ROXIE output")
+        vtk.buffer.append("ASCII")
+        vtk.buffer.append("DATASET UNSTRUCTURED_GRID")
+        vtk.buffer.append("")
+
+        # Writing point data for each element
+        vtk.buffer.append("POINTS {:d} float".format(np.sum( self.nodesperelem ) + self.numcondnodes))
+        for e in range(self.numels):
+            for i in range(self.nodesperelem[e]):
+                k = self.elements[e][i]
+                vtk.buffer.append("{:.12e} {:.12e} 0.0".format(self.nodes[k][0], self.nodes[k][1]))
+
+        for k in range(self.numcondnodes ) :
+            vtk.buffer.append("{:.12e} {:.12e} 0.0".format(self.condnodes[k][0], self.condnodes[k][1]))
+
+        vtk.buffer.append("")
+
+        # Writing cell data
+        nels = self.numels + self.numconds
+        numnodes = np.sum( self.nodesperelem)
+        ndata =numnodes + self.numels + 5*self.numconds
+        vtk.buffer.append("CELLS {:d} {:d}".format(nels, ndata ) )
+
+        c = 0
+        for e in range(self.numels):
+            if self.nodesperelem[e] == 8 :
+                vtk.buffer.append("8 {:d} {:d} {:d} {:d} {:d} {:d} {:d} {:d}".format(
+                    c + 2, c + 4, c + 6, c + 0, c + 3, c + 5, c + 7, c + 1))
+                c += 8
+            else :
+                vtk.buffer.append("6 {:d} {:d} {:d} {:d} {:d} {:d}".format(
+                    c, c + 2, c + 4, c + 1, c + 3, c + 5))
+                c += 6
+
+        for e in range( self.numconds ) :
+            vtk.buffer.append("4 {:d} {:d} {:d} {:d}".format(
+                c, c+1, c+2, c+3 ) )
+            c+=4
+
+        vtk.buffer.append("")
+
+        # Writing cell types
+        vtk.buffer.append("CELL_TYPES {:d}".format(self.numels + self.numconds))
+        for e in range(self.numels):
+            if self.nodesperelem[e] == 6 :
+                vtk.buffer.append("22")
+            elif self.nodesperelem[e] == 8 :
+                vtk.buffer.append("23")
+
+        for e in range(self.numconds):
+            vtk.buffer.append("9")
+
+        vtk.buffer.append("")
+
+        # Writing vector field data for B field
+        n =  sum( self.nodesperelem)
+        vtk.buffer.append("POINT_DATA {:d}".format( n + 4 * self.numconds) )
+        vtk.buffer.append("VECTORS B float")
+        for k in range( n ) :
+            vtk.buffer.append("{:.12e} {:.12e} 0.0".format(self.bx[k], self.by[k]))
+        for k in range( 4 * self.numconds ) :
+            vtk.buffer.append("0 0 0")
+
+        vtk.buffer.append("")
+
+        # Writing vector field data for H field
+        vtk.buffer.append("VECTORS H float")
+        for k in range( n ) :
+            vtk.buffer.append("{:.12e} {:.12e} 0.0".format(self.hx[k], self.hy[k]))
+        for k in range( 4 * self.numconds ) :
+            vtk.buffer.append("0 0 0")
+        vtk.buffer.append("")
+
+        vtk.buffer.append("Scalars mu_r float")
+        vtk.buffer.append("LOOKUP_TABLE default")
+        mu0 = 1.25663706212e-6
+        for k in range(n):
+            h = math.sqrt( self.hx[k]*self.hx[k] +  self.hy[k]* self.hy[k]  )
+            if h < self.hmax :
+                mur = self.mucurve( h ) / mu0
+            else :
+                mur = 1.0
+
+            vtk.buffer.append("{:.12e}".format( mur ) )
+
+        for k in range( self.numcondnodes ) :
+            vtk.buffer.append("1.0")
+
+        vtk.buffer.append("Scalars mu_fac float")
+        vtk.buffer.append("LOOKUP_TABLE default")
+        mu0 = 1.25663706212e-6
+        for k in range(n):
+            h = math.sqrt(self.hx[k] * self.hx[k] + self.hy[k] * self.hy[k])
+            if h < self.hmax:
+                mur = self.mucurve(h) / mu0
+            else:
+                mur = 1.0
+
+            vtk.buffer.append("{:.12e}".format( ( mur - 1 ) / (mur + 1 )))
+
+        for k in range(self.numcondnodes):
+            vtk.buffer.append("0.0")
+
+        # Save the file
+        vtk.save( path )
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: rox2vtk <path_to_roxie_file>")
+        sys.exit(1)
+
+    F = RoxieReader(os.getcwd() + "/" + sys.argv[1])
+
+if __name__ == '__main__':
+    main()

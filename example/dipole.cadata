@@ -1,0 +1,35 @@
+VERSION 10
+INSUL 2
+  1 BARE                 0            0 'BARE                          ' 
+  2 ALLPOLYIL         0.15         0.12 'POLYIMID MB INNER             ' 
+ No Name            Radial       Azimut  Comment                         
+
+REMFIT 1
+  1 FIT1   1           3E+09          9.2         0.57          0.9         2.32        27.04         14.5            0            0            0            0 'MB FILAMENT TYPE              ' 
+ No Name   Type           C1           C2           C3           C4           C5           C6           C7           C8           C9          C10          C11  Comment                         
+
+FILAMENT 1
+  1 NBTII                7            0 FIT1   FIT1   'NBTI  INNER CABLES            ' 
+ No Name           fildiao      fildiai Jc-Fit fit-|   Comment                         
+
+STRAND 1
+  1 STREIC1          1.065          1.6    70          1.9           10         1591       500.34 'MEIC Bruker-CERN scaled, 7% de'
+ No Name             diam.        cu/sc   RRR         Tref         Bref      Jc@BrTr       dJc/dB  Comment                         
+
+TRANSIENT 1
+  1 TRANS1           1E-06        1E-07        0.004     1.24E-10        9E-11          0.5     'EIC cable resitances          ' 
+ No Name                Rc           Ra  fil.twistp.       fil.R0    fil.dR/dB strandfill.fac.   Comment                         
+
+CABLE 2
+  1 EICLHCB           15.1        1.816        1.984    28          115            5 'IC Dipole Key     ' 
+  2 EICLHCQ           15.1         1.79         2.01    28          115            5 'IC Quad Key       '
+ No Name            height      width_i      width_o    ns      transp.        degrd  Comment                         
+
+CONDUCTOR 4
+  1 EICLHCB2K     1 EICLHCB     STREIC1   NBTII     ALLPOLYIL TRANS1             1.9 'EIC IR DIP @2K  ' 
+  2 EICLHCQ2K     1 EICLHCQ     STREIC1   NBTII     ALLPOLYIL TRANS1             1.9 'EIC IR Quad @2K ' 
+  3 EICLHCB4K     1 EICLHCB     STREIC1   NBTII     ALLPOLYIL TRANS1             4.6 'EIC IR DIP @4K  ' 
+  4 EICLHCQ4K     1 EICLHCQ     STREIC1   NBTII     ALLPOLYIL TRANS1             4.6 'EIC IR Quad @4K ' 
+ No Name       Type CableGeom.  Strand    Filament  Insul     Trans              T_o  Comment                         
+
+
