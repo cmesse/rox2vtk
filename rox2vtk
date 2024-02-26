@@ -1,4 +1,4 @@
-#!/usr/bin env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
@@ -172,7 +172,7 @@ class Cond2D(AsciiFile):
             end_line += 1
 
         # Calculate the number of elements (conductors)
-        parent.numconds = int((end_line - start_line) / 5)
+        parent.numconds = int((end_line - start_line) / 20)
 
         # Calculate the number of nodes
         parent.numcondnodes = 4 * parent.numconds
@@ -202,8 +202,21 @@ class RoxieReader():
         self._read_cond2d( basepath + ".cond2d" )
         self._read_mucurve( os.path.dirname(path) + "/bemfem.ini" )
         self._read_hmo(os.path.dirname(path) + "/bemfem.hmo")
-        self._read_sol(basepath + ".sol")
-        self._save_vtk(basepath + ".vtk")
+        if os.path.exists( basepath + ".sol" ) :
+            self._read_sol(basepath + ".sol")
+        else:
+            self._read_xml(basepath + ".post.xml")
+            if self.num_timesteps == 1 :
+                self._assemble_timestep( 0 )
+
+        if self.num_timesteps == 1 :
+            self._save_vtk(basepath + ".vtk")
+        else:
+            for k in range( self.num_timesteps ) :
+                self._assemble_timestep( k )
+                print( "saving timestep {:03d} : {:s}".format( k+1, self.timesteps[k]) )
+
+                self._save_vtk( basepath + "_{:03d}.vtk".format( k + 1 ), k )
 
     def _read_hmo(self, path: str):
         """
@@ -265,6 +278,68 @@ class RoxieReader():
         # Process electric field information
         self.hx, self.hy = self._process_field_data(sol, "-24 3 0")
 
+        self.Fx = None
+        self.Fy = None
+
+    def _read_xml(self, path: str):
+        xml = AsciiFile(path)
+        xml.clean_buffer()
+        start_lines_bh = []
+        start_lines_cf = []
+        count = 0
+
+        self.timesteps = []
+        for line in xml.buffer:
+            count += 1
+            if "<meshData>" in line:
+                start_lines_bh.append(count)
+            elif "<conductorForces>" in line:
+                start_lines_cf.append(count)
+            elif "<step id" in line and "transient" in line:
+                self.timesteps.append(line.split(" ")[2].split('"')[1])
+
+        self.num_timesteps = len(start_lines_bh)
+        self.Hx = np.zeros((self.numnodes, self.num_timesteps), dtype=np.float64)
+        self.Hy = np.zeros((self.numnodes, self.num_timesteps), dtype=np.float64)
+        self.Bx = np.zeros((self.numnodes, self.num_timesteps), dtype=np.float64)
+        self.By = np.zeros((self.numnodes, self.num_timesteps), dtype=np.float64)
+
+        self.Fx = np.zeros((self.numconds, self.num_timesteps), dtype=np.float64)
+        self.Fy = np.zeros((self.numconds, self.num_timesteps), dtype=np.float64)
+
+        for k in range(self.num_timesteps):
+            for i in range(self.numnodes):
+                values = xml.buffer[start_lines_bh[k] + i].split(',')
+                bx = float(values[5])
+                by = float(values[6])
+                b = math.sqrt( bx*bx + by * by )
+                h = self.bhcurve( b )
+                self.Hx[i][k] = h/b * bx
+                self.Hy[i][k] = h/b * by
+                self.Bx[i][k] = bx
+                self.By[i][k] = by
+
+            for i in range( self.numconds ) :
+                values = xml.buffer[start_lines_cf[k] + i].split(',')
+                self.Fx[i][k] = float( values[1] )
+                self.Fy[i][k] = float( values[2] )
+
+    def _assemble_timestep(self, k: int ):
+        n = np.sum(self.nodesperelem)
+        self.bx = np.zeros(n, dtype=np.float64)
+        self.by = np.zeros(n, dtype=np.float64)
+        self.hx = np.zeros(n, dtype=np.float64)
+        self.hy = np.zeros(n, dtype=np.float64)
+        c = 0
+        for e in range(self.numels):
+            for j in range(self.nodesperelem[e]):
+                i = self.elements[e][j]
+                self.bx[c] = self.Bx[i][k]
+                self.by[c] = self.By[i][k]
+                self.hx[c] = self.Hx[i][k]
+                self.hy[c] = self.Hy[i][k]
+                c+=1
+
     def _read_cond2d(self, path: str ):
         if not os.path.exists(path):
             self.numcondnodes = 0
@@ -275,7 +350,7 @@ class RoxieReader():
 
     def _read_mucurve(self, path: str):
         """
-        Reads a magnetic B-H curve from an ASCII file and initializes the mucurve attribute.
+        Reads a magnetic B-H curve from an ASCII file and initializes the nucurve attribute.
         Note that at this time, we only read the first B-H curve and assume that it applies
         to the whole bulk!
 
@@ -309,6 +384,7 @@ class RoxieReader():
             B[k] = float(words[1])
 
         # Create a spline of the B-H curve and store its derivative
+        self.bhcurve = UnivariateSpline(B, H)
         self.mucurve = UnivariateSpline(H, B).derivative()
 
         # Store the maximum H value for later use
@@ -356,7 +432,7 @@ class RoxieReader():
                 return i + 1
         return -1
 
-    def _save_vtk(self, path: str):
+    def _save_vtk(self, path: str, timestep=0 ):
         """
         Exports mesh data to a VTK ASCII file format, including points, cells, cell types,
         and vector field data.
@@ -373,6 +449,9 @@ class RoxieReader():
         vtk.buffer.append("ASCII")
         vtk.buffer.append("DATASET UNSTRUCTURED_GRID")
         vtk.buffer.append("")
+        #if self.num_timesteps > 1 :
+            #vtk.buffer.append( "TIME 1 1 double " + self.timesteps[ timestep ] )
+        #    vtk.buffer.append( "CYCLE 1 1 int 1 {:d}".format( timestep + 1 ) )
 
         # Writing point data for each element
         vtk.buffer.append("POINTS {:d} float".format(np.sum( self.nodesperelem ) + self.numcondnodes))
@@ -472,15 +551,23 @@ class RoxieReader():
         for k in range(self.numcondnodes):
             vtk.buffer.append("0.0")
 
+        if self.Fx is not None :
+            vtk.buffer.append("CELL_DATA {:d}".format( self.numels + self.numconds))
+            vtk.buffer.append("VECTORS F float")
+            for e in range( self.numels ) :
+                vtk.buffer.append("0 0 0")
+            for c in range( self.numconds ) :
+                vtk.buffer.append("{:.12e} {:.12e} 0.0".format(self.Fx[c][timestep], self.Fy[c][timestep]))
+
         # Save the file
         vtk.save( path )
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: rox2vtk <path_to_roxie_file>")
-        sys.exit(1)
+    #if len(sys.argv) < 2:
+    #    print("Usage: rox2vtk <path_to_roxie_file>")
+    #    sys.exit(1)
 
-    F = RoxieReader(os.getcwd() + "/" + sys.argv[1])
-
+    #F = RoxieReader(os.getcwd() + "/" + sys.argv[1])
+    F = RoxieReader( "/home/christian/codes/rox2vtk/example/dipole.data")
 if __name__ == '__main__':
     main()

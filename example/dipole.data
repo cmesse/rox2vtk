@@ -1,21 +1,23 @@
-VERSION 10.2.1
+VERSION 23.9.0
 '                                                                                   '
 '/opt/roxie/latest/datab/roxie.bhdata                                               '
 '/home/christian/codes/rox2vtk/example/dipole.cadata                                '
-'/home/christian/codes/rox2vtk/example/dipole.iron                                  '
+'/home/christian/codes/rox2vtk/example/bemfem.hmo                                   '
 
 &OPTION
-  LEND=F     LWEDG=F    LPERS=F    LQUENCH=F  LALGO=F    LMIRIRON=F 
-  LBEMFEM=T  LPSI=F     LSOLV=T    LIRON=T    LMORPH=F   LHARD=F    
-  LPOSTP=F   LPEAK=T    LINMARG=F  LMARG=F    LSELF=F    LMQE=F     
-  LINDU=F    LEDDY=F    LSOLE=F    LFIELD3=F  LFISTR=F   LSELF3=F   
-  LBRICK=F   LLEAD=F    LVRML=F    LOPERA=F   LOPER20=F  LANSYS=F   
-  LDXF=F     LMAP2D=F   LMAP3D=F   LEXPR=F    LFIL3D=F   LFIL2D=F   
-  LCNC=F     LBEND=F    LWEIRON=F  LCATIA=F   LEXEL=T    LAXIS=F    
-  LIMAGX=F   LIMAGY=F   LRAEND=F   LMARKER=F  LROLER2=F  LROLERP=F  
-  LIMAGZZ=F  LSTEP=F    LIFF=F     LICCA=F    LICC=F     LICCIND=F  
-  LITERNL=F  LTOPO=F    LQUEN3=F   LAYER=T    LEULER=T   LHEAD=T    
-  LPLOT=T    LVERS52=T  LHARM=T    LMATRF=F   LF3LIN=F   
+  LEND=F         LWEDG=F        LPERS=F        LQUENCH=F      LALGO=F        LQUENCH0D=F    
+  LMIRIRON=F     LBEMFEM=T      LPSI=F         LSOLV=T        LIRON=F        LMORPH=F       
+  LHMO=T         LHARD=F        LPOSTP=F       LPEAK=T        LINMARG=F      LMARG=F        
+  LSELF=F        LMQE=F         LINDU=F        LEDDY=F        LSOLE=F        LFLUX=F        
+  LFIELD3=F      LSELF3=F       LBRICK=F       LLEAD=F        LVRML=F        LOPERA=F       
+  LOPER20=F      LANSYS=F       LRX2ANS=F      LANS2RX=F      LDXF=F         LMAP2D=F       
+  LMAP3D=F       LEXPR=F        LFIL3D=F       LFIL2D=F       LCNC=F         LANSYSCN=F     
+  LWEIRON=F      LCATIA=F       LEXEL=T        LQVOLT=F       LFORCE2D=F     LQUNPLOT=F     
+  LGRAPHCSV=F    LAXIS=F        LIMAGX=F       LIMAGY=F       LRAEND=F       LMARKER=F      
+  LROLER2=F      LROLERP=F      LIMAGZZ=F      LSUPP=F        LSTEP=F        LSKIPDPL=F     
+  LIFF=F         LICCA=F        LICC=F         LICCIND=F      LITERNL=F      LTOPO=F        
+  LQUEN3=F       LAYER=T        LEULER=T       LHEAD=T        LPLOT=T        LVERS52=T      
+  LHARM=T        LMATRF=F       LF3LIN=F       LKVAL=F        LSKIPTPL=F     
   /
 
 GLOBAL2DOPTION 0
@@ -35,6 +37,8 @@ BLOCKOPTION 0
 
 BLOCK3D 0
 
+BLOCKOPTION3D 0
+
 LEAD 0
 
 BRICK 0
@@ -46,10 +50,10 @@ IRONYOKEOPTIONS /
              0            0 
          inrad       reperm 
 
-      0 
+      1 
   symtype 
 
-      2     3     1 
+      3     2     1 
   yzplane zxplane xyplane 
 
       1     0     0 
@@ -111,6 +115,8 @@ MATRF 1
 
 LINEFIELD 0
 
+KVALUES 0
+
 HARMONICOPTION 0
 
 GRAPH 11
@@ -138,5 +144,19 @@ PLOT3D 0
 PLOT3DOPTION 0
 
 OBJECTIVE 0
+
+ANSYSOPTIONS /
+      0 
+  scale 
+
+      0 
+  scale 
+
+             0            0            0            0 
+          ang1         ang2         offx         offy 
+
+QUENCH0D /
+             0            0            0            0            0            0            0 
+          qini        tempq         tque         leng         dtdt        deltm       currqm 
 
 

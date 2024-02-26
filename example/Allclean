@@ -1,19 +1,22 @@
-#/bin/bash
+#!/usr/bin/env bash
 
-rm -fv *.cond2d
-rm -fv *.cockpit
-rm -fv *.output
-rm -fv *.ps
-rm -fv *.old
-rm -fv *.scan
-rm -fv *.data~
-rm -fv *.inp
-rm -fv *.evalbfout
-rm -fv *.vfem
-rm -fv *.hmo
-rm -fv *.ini
-rm -fv *.post
-rm -fv *.sol
-rm -fv *.dat
-rm -fv *.plotbf
-rm -fv *.out
+rm -rvf MeshTest.txt
+rm -rvf fort.*
+rm -rvf *.ini
+rm -rvf *.data~
+rm -rvf *.vfem
+rm -rvf *.DAPA
+rm -rvf *.dat
+rm -rvf *.db
+rm -rvf *.out
+rm -rvf *.vfem
+rm -rvf *.f3d
+rm -rvf *.cond2d
+rm -rvf *.evalbfout
+rm -rvf *.plotbf
+rm -rvf *.sol
+rm -rvf *.bhdatal
+rm -rvf *.cadatal
+rm -rvf *.hgdatal
+rm -rvf *.madatal
+rm -rvf *.xml
