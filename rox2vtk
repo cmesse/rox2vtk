@@ -563,11 +563,11 @@ class RoxieReader():
         vtk.save( path )
 
 def main():
-    #if len(sys.argv) < 2:
-    #    print("Usage: rox2vtk <path_to_roxie_file>")
-    #    sys.exit(1)
+    if len(sys.argv) < 2:
+        print("Usage: rox2vtk <path_to_roxie_file>")
+        sys.exit(1)
 
-    #F = RoxieReader(os.getcwd() + "/" + sys.argv[1])
-    F = RoxieReader( "/home/christian/codes/rox2vtk/example/dipole.data")
+    F = RoxieReader(os.getcwd() + "/" + sys.argv[1])
+    #F = RoxieReader( "/home/christian/codes/rox2vtk/example/dipole.data")
 if __name__ == '__main__':
     main()
