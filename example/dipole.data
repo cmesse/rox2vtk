@@ -25,12 +25,12 @@ GLOBAL2DOPTION 0
 GLOBAL3D 0
 
 BLOCK 6
-    1     1    13           60      0.52886            0      8483.64  EICLHCQ2K   2  14     0            0 
-    2     1     8           60      29.1546      19.1919      8483.64  EICLHCQ2K   2  14     0            0 
-    3     1     4           60      51.8139      57.4598      8483.64  EICLHCQ2K   2  14     0            0 
-    4     1     3           60      72.9547      69.6786      8483.64  EICLHCQ2K   2  14     0            0 
-    5     1    22         76.1      0.52886            0      8483.64  EICLHCQ2K   2  14     0            0 
-    6     1    18         76.1      36.2048      46.1256      8483.64  EICLHCQ2K   2  14     0            0 
+    1     1    13           60     0.483164            0         8498  EICLHCQ2K   2  14     0            0 
+    2     1     8           60      28.7236      19.2444         8498  EICLHCQ2K   2  14     0            0 
+    3     1     4           60      51.3031      57.4949         8498  EICLHCQ2K   2  14     0            0 
+    4     1     3           60       71.542      69.5369         8498  EICLHCQ2K   2  14     0            0 
+    5     1    22         76.1     0.483164            0         8498  EICLHCQ2K   2  14     0            0 
+    6     1    18         76.1      36.3531       46.016         8498  EICLHCQ2K   2  14     0            0 
    no  type   nco       radius          phi        alpha      current   condname  n1  n2  imag         turn 
 
 BLOCKOPTION 0

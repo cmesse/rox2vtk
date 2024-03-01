@@ -9,23 +9,37 @@ Pi                       = 3.141592653589793;
 deg                      = 0.01745329251994330;
 bias                     = 0.5;
 dv IRON_INNER_DIAMETER   = 232.2;
-dv IRON_OUTER_DIAMETER   = 582;
+dv IRON_OUTER_DIAMETER   = 550;
 inner_radius             = IRON_INNER_DIAMETER*0.5*mm;
 outer_radius             = IRON_OUTER_DIAMETER*0.5*mm;
 
 dv COOLING_HOLE_DIAMETER = 50 ;
-dv COOLING_HOLE_OFFSET_X = 63.45 ;
+dv COOLING_HOLE_OFFSET_X = 44.5 ;
 cooling_hole_radius      = COOLING_HOLE_DIAMETER * 0.5 * mm ;
 cooling_hole_offset      = COOLING_HOLE_OFFSET_X * mm ;
 sin_psi                  = 4. / COOLING_HOLE_DIAMETER ;
 cos_psi                  = Sqrt( 1 - sin_psi * sin_psi );
 
-dv HOLEA_POSITION       = 242.22 ;
-dv HOLEA_DIAMETER       = 25 ;
-dv HOLEA_ANGLE          = 15 ;
+dv HOLEA_POSITION       = 205 ;
+dv HOLEA_DIAMETER       = 25;
+dv HOLEA_ANGLE          = 19 ;
 holea_radius            = HOLEA_DIAMETER*0.5*mm;
 holea_position          = HOLEA_POSITION*mm;
 holea_angle             = HOLEA_ANGLE * deg ;
+
+dv HOLEB_POSITION       = 132 ;
+dv HOLEB_DIAMETER       = 10 ;
+dv HOLEB_ANGLE          = 19 ;
+holeb_radius            = HOLEB_DIAMETER*0.5*mm;
+holeb_position          = HOLEB_POSITION*mm;
+holeb_angle             = HOLEB_ANGLE * deg ;
+
+dv HOLEC_POSITION       = 132 ;
+dv HOLEC_DIAMETER       = 10 ;
+dv HOLEC_ANGLE          = 39 ;
+holec_radius            = HOLEC_DIAMETER*0.5*mm;
+holec_position          = HOLEC_POSITION*mm;
+holec_angle             = HOLEC_ANGLE * deg ;
 
 
 -- Keypoints (PAD)
@@ -125,7 +139,10 @@ kp03 = [ 148.1 + cooling_hole_offset + cos_psi *  cooling_hole_radius, 2 ];
 
 kp04 = [holea_position-holea_radius @ holea_angle ];
 kp05 = [holea_position+holea_radius @ holea_angle ];
-
+kp06 = [holeb_position-holeb_radius @ holeb_angle ];
+kp07 = [holeb_position+holeb_radius @ holeb_angle ];
+kp08 = [holec_position-holec_radius @ holec_angle ];
+kp09 = [holec_position+holec_radius @ holec_angle ];
 
 --LINES PAD (counter clockwise)
 ln01 = HyperLine(kp115,kp114,"Line",bias);
@@ -180,7 +197,8 @@ ln45 = HyperLine(kp147,kp134,"Line",bias);
 
 -- line (holes for field qiality)
 ln55 = HyperLine(kp04,kp05,"Circle");
-
+ln56 = HyperLine(kp06,kp07,"Circle");
+ln57 = HyperLine(kp08,kp09,"Circle");
 
 --AREAS
 arpad = HyperArea(ln01,ln02,ln03,ln04,ln05,ln06,ln07,ln08,ln09,ln10,ln11,ln12,ln13,ln14,ln15,ln16,ln17,ln18,ln19,ln20,ln21,BHiron1);
@@ -190,14 +208,15 @@ aryoke = HyperArea(ln22,ln23,ln24,ln25,ln26,ln27,ln28,ln29,ln30,ln31,ln32,ln33,l
 
 --HOLES
 arholea = HyperArea(ln55, BH_air);
+arholeb = HyperArea(ln56, BH_air);
+arholec = HyperArea(ln57, BH_air);
 
 HyperHoleOf(arholea,aryoke);
+HyperHoleOf(arholeb,arpad);
+HyperHoleOf(arholec,arpad);
 
 --MESH
 Lmesh(ln21,32);
-
-Mirrorx;
-Mirrory;
 
 
 

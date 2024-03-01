@@ -46,10 +46,12 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 import math
 import os
+import subprocess
 import re
 import sys
 import numpy as np
 from scipy.interpolate import UnivariateSpline
+
 
 class AsciiFile:
     """
@@ -119,14 +121,20 @@ class AsciiFile:
 
         n = len(self.buffer)
 
+
+        progress = 0.0
+
         # loop over all lines in buffer
         for k in range(n):
-            # copy line
-            Line = re.sub('\t', ' ', self.buffer[k])
+            progress0 = progress
+            progress = round( k / n * 100, 1 )
+            if( progress > progress0 ):
+                print( "reading ASCII file: {:6.1f} %".format( progress ))
 
             # Tidy up line
-            self.buffer[k] = re.sub(' +', ' ', Line.strip())
+            self.buffer[k] = re.sub(' +', ' ', re.sub('\t', ' ', self.buffer[k]).strip())
 
+        print("")
     def throw(self, check: bool, message: str ):
         try:
             if not check == True:
@@ -195,6 +203,67 @@ class Cond2D(AsciiFile):
                 line_number += 1
             line_number += 1
 
+
+def bash( cmd : str ) :
+    return subprocess.run( cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, text=True).stdout.split('\n')
+
+def get_currents( outfile : str ):
+    cmd = 'cat ' + outfile + "| grep 'CURRENT IN CONDUCTOR' | cut -dR -f 4 | cut -d'(' -f 1"
+    lines = bash( cmd )
+    n = len(lines) -1
+    ids = np.zeros( n, dtype=np.uint )
+    for k in range(n):
+        ids[k] = int(lines[k])
+    ids = np.unique( ids )
+
+    # we actually only need the first one:
+    c = ids[0]
+    line = 'CURRENT IN CONDUCTOR {:4g} (A)'.format( c )
+    cmd = "cat " + outfile + "| grep '" + line + "' | rev | cut -d' ' -f 1 | rev"
+    lines = bash( cmd )
+    n = len(lines) -1
+    currents = np.zeros( n, dtype=np.float64)
+    for k in range( n ) :
+        currents[k] = float( lines[k] )
+
+    return currents
+
+
+def get_fields( outfile : str ):
+    cmd = 'cat ' + outfile + "| grep 'MAIN FIELD (T)' | rev | cut -d' ' -f 1 | rev"
+    lines = bash( cmd )
+    n = len(lines)-1
+    fields = np.zeros( n, dtype=np.float64 )
+    for k in range(n):
+        fields[k] = abs( float( lines[k]))
+
+    return fields
+
+def get_graphs( outfile: str, numsteps: int ) :
+    # get the number of graphs
+    cmd = 'grep -n GRAPH ' + outfile + ' | cut -d: -f 1 '
+
+    lines = bash(cmd)
+    numgraphs = len(lines) - 1
+
+    if numgraphs == 0 :
+        return None
+
+    start = np.zeros( numgraphs, dtype=np.uint)
+    for g in range( numgraphs ) :
+        start[ g ] = int( lines[g] ) + 2
+
+    graphs = np.zeros( ( numgraphs, numsteps, 2 ), dtype=np.float64 )
+
+    for g in range( numgraphs ) :
+        for k in range( numsteps ) :
+            line = bash( 'sed -n {:g}p '.format( start[g] + k ) + outfile )[0].split(',')
+            graphs[g][k][0] = float( line[1])
+            graphs[g][k][1] = float(line[2])
+
+    return graphs
+
+
 class RoxieReader():
 
     def __init__(self, path: str):
@@ -202,12 +271,21 @@ class RoxieReader():
         self._read_cond2d( basepath + ".cond2d" )
         self._read_mucurve( os.path.dirname(path) + "/bemfem.ini" )
         self._read_hmo(os.path.dirname(path) + "/bemfem.hmo")
+        self._currents = get_currents( basepath + ".output")
+        self._fields = get_fields( basepath + ".output")
+
+
         if os.path.exists( basepath + ".sol" ) :
             self._read_sol(basepath + ".sol")
         else:
             self._read_xml(basepath + ".post.xml")
             if self.num_timesteps == 1 :
                 self._assemble_timestep( 0 )
+                self._graphs = None
+                self.num_graphs = 0
+            else :
+                self._graphs = get_graphs( basepath + ".output", self.num_timesteps )
+                self.num_graphs = len(self._graphs)
 
         if self.num_timesteps == 1 :
             self._save_vtk(basepath + ".vtk")
@@ -310,14 +388,16 @@ class RoxieReader():
         for k in range(self.num_timesteps):
             for i in range(self.numnodes):
                 values = xml.buffer[start_lines_bh[k] + i].split(',')
-                bx = float(values[5])
-                by = float(values[6])
-                b = math.sqrt( bx*bx + by * by )
-                h = self.bhcurve( b )
-                self.Hx[i][k] = h/b * bx
-                self.Hy[i][k] = h/b * by
-                self.Bx[i][k] = bx
-                self.By[i][k] = by
+                if len( values ) > 1 :
+                    j = int(values[0]) - 1
+                    bx = float(values[5])
+                    by = float(values[6])
+                    b = math.sqrt( bx*bx + by * by )
+                    h = self.bhcurve( b )
+                    self.Hx[j][k] = h/b * bx
+                    self.Hy[j][k] = h/b * by
+                    self.Bx[j][k] = bx
+                    self.By[j][k] = by
 
             for i in range( self.numconds ) :
                 values = xml.buffer[start_lines_cf[k] + i].split(',')
@@ -449,9 +529,6 @@ class RoxieReader():
         vtk.buffer.append("ASCII")
         vtk.buffer.append("DATASET UNSTRUCTURED_GRID")
         vtk.buffer.append("")
-        #if self.num_timesteps > 1 :
-            #vtk.buffer.append( "TIME 1 1 double " + self.timesteps[ timestep ] )
-        #    vtk.buffer.append( "CYCLE 1 1 int 1 {:d}".format( timestep + 1 ) )
 
         # Writing point data for each element
         vtk.buffer.append("POINTS {:d} float".format(np.sum( self.nodesperelem ) + self.numcondnodes))
@@ -499,6 +576,29 @@ class RoxieReader():
 
         for e in range(self.numconds):
             vtk.buffer.append("9")
+
+        vtk.buffer.append("")
+
+
+        vtk.buffer.append("FIELD FieldData {:g}".format( 3 + self.num_graphs ) )
+
+
+        vtk.buffer.append("time 1 1 double")
+        if self.num_timesteps > 1 :
+            vtk.buffer.append(self.timesteps[timestep])
+        else:
+            vtk.buffer.append("0.0")
+
+        vtk.buffer.append("current 1 1 double")
+        vtk.buffer.append("{:.12e}".format( self._currents[timestep]) )
+        vtk.buffer.append("field 1 1 double")
+        vtk.buffer.append("{:.12e}".format(self._fields[timestep]))
+
+        c = 0
+        for g in range( self.num_graphs ) :
+            c+=1
+            vtk.buffer.append("graph_{:02g} 1 1 double".format( c ) )
+            vtk.buffer.append("{:.12e}".format(self._graphs[g][timestep][1] ) )
 
         vtk.buffer.append("")
 
@@ -551,8 +651,15 @@ class RoxieReader():
         for k in range(self.numcondnodes):
             vtk.buffer.append("0.0")
 
+        vtk.buffer.append("CELL_DATA {:d}".format(self.numels + self.numconds))
+        vtk.buffer.append("Scalars group int")
+        vtk.buffer.append("LOOKUP_TABLE default")
+        for e in range(self.numels):
+            vtk.buffer.append("0")
+        for c in range( self.numconds ) :
+            vtk.buffer.append("1")
+
         if self.Fx is not None :
-            vtk.buffer.append("CELL_DATA {:d}".format( self.numels + self.numconds))
             vtk.buffer.append("VECTORS F float")
             for e in range( self.numels ) :
                 vtk.buffer.append("0 0 0")

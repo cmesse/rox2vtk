@@ -1,1 +1,3 @@
-This script converts the roxie output files to ParaView. See the example for further details
+rox2vtk converts the roxie output files to ParaView. See the example for further details.
+rox2vtk is distributed under a BSD-3 license, (c) 2024, The Regents of the University of California,
+through Lawrence Berkeley National Laboratory
